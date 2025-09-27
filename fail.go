@@ -2,36 +2,72 @@ package fail
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 )
 
-type Fail struct {
-	id       string
-	failCode FailCode
-	cause    *error
-	params   []any
+type Fail interface {
+	GetId() string
+	GetTimestamp() time.Time
+	GetFailInfo() FailInfo
+	GetCause() error
+	GetParams() []any
+	Error() string
 }
 
-func NewFail(failCode FailCode, cause *error, params []any) *Fail {
-	fail := Fail{
-		id:       uuid.NewString(),
-		failCode: failCode,
-		cause:    cause,
-		params:   params,
-	}
-
-	if len(failCode.getParams()) > 0 && len(params) == 0 {
-		fail.params = failCode.getParams()
-	}
-
-	return &fail
+type DefaultFail struct {
+	id        string
+	timestamp time.Time
+	info      FailInfo
+	cause     error
+	params    []any
 }
 
-func (f *Fail) Error() string {
-	if f.cause != nil {
-		return fmt.Errorf("%s: %w", f.failCode.String(), *f.cause).Error()
+func NewFail(info FailInfo) *DefaultFail {
+	return &DefaultFail{
+		id:        uuid.NewString(),
+		timestamp: time.Now(),
+		info:      info,
+	}
+}
+
+func (f *DefaultFail) WithCause(cause error) *DefaultFail {
+	f.cause = cause
+	return f
+}
+
+func (f *DefaultFail) WithParams(params ...any) *DefaultFail {
+	f.params = append(f.params, params...)
+	return f
+}
+
+func (f *DefaultFail) StringParams() []string {
+	stringParams := make([]string, len(f.params))
+
+	for _, param := range f.params {
+		switch typedParam := param.(type) {
+		case string:
+			stringParams = append(stringParams, typedParam)
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+			stringParams = append(stringParams, fmt.Sprintf("%d", typedParam))
+		case float32, float64, complex64, complex128:
+			stringParams = append(stringParams, fmt.Sprintf("%.2f", typedParam))
+		case bool:
+			stringParams = append(stringParams, fmt.Sprintf("%t", typedParam))
+		}
 	}
 
-	return f.failCode.String()
+	return stringParams
+}
+
+func (f *DefaultFail) GetFailInfo() FailInfo {
+	return f.info
+}
+
+func (f *DefaultFail) Error() string {
+	if cause, ok := f.cause.(Fail); ok {
+		return fmt.Sprint(f.info.RawMessage(), f.params) + "\n" + cause.Error()
+	}
+	return f.Error()
 }

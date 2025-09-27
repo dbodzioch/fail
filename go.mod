@@ -1,4 +1,4 @@
-module github.com/dbodzioch/fail
+module github.com/dbodzioch/go-fail
 
 go 1.25.0
 
