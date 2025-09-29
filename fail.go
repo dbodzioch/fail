@@ -8,8 +8,8 @@ import (
 )
 
 type Fail interface {
-	GetId() string
-	GetTimestamp() time.Time
+	GetId() *string
+	GetTimestamp() *time.Time
 	GetFailInfo() FailInfo
 	GetCause() error
 	GetParams() []any
@@ -42,6 +42,33 @@ func (f *DefaultFail) WithParams(params ...any) *DefaultFail {
 	return f
 }
 
+func (f *DefaultFail) Error() string {
+	if cause, ok := f.cause.(Fail); ok {
+		return fmt.Sprint(f.info.RawMessage(), f.params) + "\n" + cause.Error()
+	}
+	return f.Error()
+}
+
+func (f *DefaultFail) GetFailInfo() FailInfo {
+	return f.info
+}
+
+func (f *DefaultFail) GetId() *string {
+	return &f.id
+}
+
+func (f *DefaultFail) GetTimestamp() *time.Time {
+	return &f.timestamp
+}
+
+func (f *DefaultFail) GetCause() error {
+	return f.cause
+}
+
+func (f *DefaultFail) GetParams() []any {
+	return f.params
+}
+
 func (f *DefaultFail) StringParams() []string {
 	stringParams := make([]string, len(f.params))
 
@@ -59,15 +86,4 @@ func (f *DefaultFail) StringParams() []string {
 	}
 
 	return stringParams
-}
-
-func (f *DefaultFail) GetFailInfo() FailInfo {
-	return f.info
-}
-
-func (f *DefaultFail) Error() string {
-	if cause, ok := f.cause.(Fail); ok {
-		return fmt.Sprint(f.info.RawMessage(), f.params) + "\n" + cause.Error()
-	}
-	return f.Error()
 }
